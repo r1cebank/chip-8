@@ -19,30 +19,48 @@ class CPU:
         # Counters
         self.pc = 0x200
 
+        self.funcmap = {
+            0x0000: self._0000
+        }
+
         logging.debug("CPU initialized.")
+
+    def _0000(self):
+        extracted_op = self.opcode & 0xf0ff
+        try:
+            self.funcmap[extracted_op]()
+        except:
+            logging.warn("Unknown instruction: %X" % self.opcode)
 
     def load_rom(self, rom):
         logging.debug("Loading %s..." % rom)
-        binary = open(rom, "rb").read()
-        i = 0
-        while i < len(binary):
-            self.memory[i + 0x200] = ord(binary[i])
-            i += 1
+        romdata = open(rom, 'rb').read()
+        for index, val in enumerate(romdata):
+            self.memory[0x200 + index] = val
+        logging.debug("ROM Loaded")
 
     def cycle(self):
-        self.opcode = self.memory[self.pc]
+        self.opcode = (self.memory[self.pc] << 8) | self.memory[self.pc + 1]
 
         #
         # TODO: process this opcode here
         #
-
-        # After
+        self.vx = (self.opcode & 0x0f00) >> 8
+        self.vy = (self.opcode & 0x00f0) >> 4
         self.pc += 2
 
+        # 2. check ops, lookup and execute
+        extracted_op = self.opcode & 0xf000
+        try:
+            self.funcmap[extracted_op]()  # call the associated method
+        except:
+            logging.warn("Unknown instruction: %X" % self.opcode)
+
+
         # decrement timers
-        if self.delay_timer > 0:
-            self.delay_timer -= 1
-        if self.sound_timer > 0:
-            self.sound_timer -= 1
-            if self.sound_timer == 0:
+        if self.delayTimer > 0:
+            self.delayTimer -= 1
+        if self.soundTimer > 0:
+            self.soundTimer -= 1
+            if self.soundTimer == 0:
                 pass

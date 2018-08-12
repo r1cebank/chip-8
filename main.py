@@ -1,12 +1,15 @@
+import sys
+import time
 import pygame
 
 from cpu import *
 
 class Emulator:
-    def __init__(self):
+    def __init__(self, rom):
         self._running = True
         self.scaleFactor = 10
         self._display_surf = None
+        self.rom = rom
         self.cpu = CPU()
         self.size = self.weight, self.height = 64 * self.scaleFactor, 32 * self.scaleFactor
 
@@ -14,6 +17,7 @@ class Emulator:
         pygame.init()
         pygame.display.set_caption("chip-8 emulator")
         self._display_surf = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
+        self.cpu.load_rom(self.rom)
         self._running = True
 
     def on_event(self, event):
@@ -21,7 +25,8 @@ class Emulator:
             self._running = False
 
     def on_loop(self):
-        pass
+        self.cpu.cycle()
+        time.sleep(1)
 
     def on_render(self):
         pass
@@ -42,5 +47,5 @@ class Emulator:
 
 
 if __name__ == "__main__":
-    emulator = Emulator()
+    emulator = Emulator('roms/rand.rom') #sys.argv[1]
     emulator.on_execute()
