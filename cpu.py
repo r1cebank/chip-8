@@ -5,7 +5,7 @@ logging.basicConfig(level=logging.DEBUG)
 class CPU:
     def __init__(self):
         self.memory = [0] * 4096
-        self.io = [0] * 16
+        self.register = [0] * 16
         self.frameBuffer = [0] * 32 * 64
         self.stack = []
         self.input = [0] * 16
