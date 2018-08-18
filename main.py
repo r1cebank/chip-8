@@ -18,6 +18,7 @@ class Emulator:
         pygame.display.set_caption("chip-8 emulator")
         self._display_surf = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
         self.cpu.load_rom(self.rom)
+        self.cpu.start()
         self._running = True
 
     def on_event(self, event):
@@ -25,14 +26,14 @@ class Emulator:
             self._running = False
 
     def on_loop(self):
-        self.cpu.cycle()
-        time.sleep(1)
+        pass
 
     def on_render(self):
         pass
 
     def on_cleanup(self):
         pygame.quit()
+        self.cpu.stop()
 
     def on_execute(self):
         if self.on_init() == False:
