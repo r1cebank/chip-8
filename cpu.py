@@ -21,7 +21,7 @@ class CPU:
         self.flush = False
 
         # Clock
-        self.speed = 1 # Hz
+        self.speed = 5 # Hz
         self.clock = None
 
         # Counters
@@ -31,7 +31,12 @@ class CPU:
             0x0000: self._0000,
             0x00e0: self._00e0,
             0xc000: self._C000,
-            0xa000: self._A000
+            0xa000: self._A000,
+            0xf000: self._F000,
+            0xf033: self._F033,
+            0xf065: self._F065,
+            0xf029: self._F029,
+            0x6000: self._6000
         }
 
         logging.debug("CPU initialized.")
@@ -61,6 +66,41 @@ class CPU:
         logging.info('Generate Random Number')
         self.register[self.vx] = randint(0, 255) & (self.instruction & 0x00ff)
 
+    def _F000(self):
+        extracted_op = self.instruction & 0xf0ff
+        try:
+            self.funcmap[extracted_op]()
+        except:
+            logging.warn("Unknown instruction: %X, op: %X" % (self.instruction, extracted_op))
+    def _F033(self):
+        # Store BCD representation of Vx in memory locations I, I+1, and I+2.
+        logging.info('Storing BCD to Memory')
+        self.memory[self.I] = int(self.register[self.vx] / 100)
+        self.memory[self.I + 1] = int((self.register[self.vx] % 100) / 10)
+        self.memory[self.I + 2] = int(self.register[self.vx] % 10)
+
+    def _F065(self):
+        # Read registers V0 through Vx from memory starting at location I.
+        logging.info("Fills V0 to VX with values from memory starting at address I.")
+        i = 0
+        while i <= self.vx:
+            self.register[i] = self.memory[self.I + i]
+            i += 1
+        self.I += self.vx + 1
+
+    def _F029(self):
+        # Set I = location of sprite for digit Vx.
+        logging.info('Set index to point to location of vx')
+        try:
+            self.I = (5 * (self.register[self.vx])) & 0xfff
+        except Exception as e:
+            logging.error(e)
+
+    def _6000(self):
+        # Set Vx = kk.
+        logging.info('Set vx to kk')
+        self.register[self.vx] = self.instruction & 0x00ff
+
     def load_rom(self, rom):
         logging.debug("Loading %s..." % rom)
         romdata = open(rom, 'rb').read()
@@ -89,7 +129,7 @@ class CPU:
         extracted_op = self.instruction & 0xf000
         try:
             self.funcmap[extracted_op]()  # call the associated method
-        except:
+        except Exception as e:
             logging.warn("Unknown instruction: %X, op: %X" % (self.instruction, extracted_op))
 
 
