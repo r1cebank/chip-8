@@ -36,7 +36,9 @@ class CPU:
             0xf033: self._F033,
             0xf065: self._F065,
             0xf029: self._F029,
-            0x6000: self._6000
+            0x6000: self._6000,
+            0xd000: self._D000,
+            0xf00a: self._F00A
         }
 
         logging.debug("CPU initialized.")
@@ -100,6 +102,14 @@ class CPU:
         # Set Vx = kk.
         logging.info('Set vx to kk')
         self.register[self.vx] = self.instruction & 0x00ff
+
+    def _D000(self):
+        # Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+        logging.info('Display sprite at I')
+
+    def _F00A(self):
+        # Wait for a key press, store the value of the key in Vx.
+        logging.info('Wait for keypress')
 
     def load_rom(self, rom):
         logging.debug("Loading %s..." % rom)
