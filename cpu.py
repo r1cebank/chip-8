@@ -38,7 +38,8 @@ class CPU:
             0xf029: self._F029,
             0x6000: self._6000,
             0xd000: self._D000,
-            0xf00a: self._F00A
+            0xf00a: self._F00A,
+            0x1000: self._1000
         }
 
         logging.debug("CPU initialized.")
@@ -49,6 +50,12 @@ class CPU:
             self.funcmap[extracted_op]()
         except:
             logging.warn("Unknown instruction: %X, op: %X" % (self.instruction, extracted_op))
+
+    def _1000(self):
+        # 1nnn - JMP
+        # Jump to location nnn.
+        logging.info("Jumping to %X", self.instruction % 0x0fff)
+        self.pc = self.instruction & 0x0fff
 
     def _00e0(self):
         # 00E0 - CLS
