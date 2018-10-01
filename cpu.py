@@ -10,7 +10,7 @@ class CPU:
         self.memory = [0] * 4096
         self.register = [0] * 16
         self.I = 0
-        self.frameBuffer = [0] * 32 * 64
+        self.frameBuffer = [0] * 64 * 32
         self.stack = []
         self.input = [0] * 16
         self.instruction = 0
@@ -21,7 +21,7 @@ class CPU:
         self.flush = False
 
         # Clock
-        self.speed = 5 # Hz
+        self.speed = 1 # Hz
         self.clock = None
 
         # Counters
@@ -42,6 +42,10 @@ class CPU:
             0x1000: self._1000
         }
 
+        # Control lines
+        # 0 - flush display
+        self.control = [0] * 16
+
         logging.debug("CPU initialized.")
 
     def _0000(self):
@@ -60,6 +64,8 @@ class CPU:
     def _00e0(self):
         # 00E0 - CLS
         # Clear the display.
+        self.frameBuffer = [0] * 32 * 64
+        self.control[0] = True
         logging.info('Clearing Screen')
 
     def _A000(self):
