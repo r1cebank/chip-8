@@ -5,6 +5,25 @@ import pygame
 
 from cpu import *
 
+KEY_MAP = {
+    pygame.K_1: 0x1,
+    pygame.K_2: 0x2,
+    pygame.K_3: 0x3,
+    pygame.K_4: 0xc,
+    pygame.K_q: 0x4,
+    pygame.K_w: 0x5,
+    pygame.K_e: 0x6,
+    pygame.K_r: 0xd,
+    pygame.K_a: 0x7,
+    pygame.K_s: 0x8,
+    pygame.K_d: 0x9,
+    pygame.K_f: 0xe,
+    pygame.K_z: 0xa,
+    pygame.K_x: 0,
+    pygame.K_c: 0xb,
+    pygame.K_v: 0xf
+}
+
 class Emulator:
     def __init__(self, rom):
         self._running = False
@@ -29,6 +48,12 @@ class Emulator:
     def on_event(self, event):
         if event.type == pygame.QUIT:
             self._running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key in KEY_MAP.keys():
+                self.cpu.input[KEY_MAP[event.key]] = 1
+        if event.type == pygame.KEYUP:
+            if event.key in KEY_MAP.keys():
+                self.cpu.input[KEY_MAP[event.key]] = 0
 
     def on_loop(self):
         # Copy the framebuffer to screen
@@ -44,6 +69,7 @@ class Emulator:
         # Check flush flag
         if self.cpu.control[0]:
             self.on_render()
+            self.cpu.control[0] = False
 
     def on_render(self):
         pygame.display.flip()

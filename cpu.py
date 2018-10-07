@@ -21,7 +21,7 @@ class CPU:
         self.flush = False
 
         # Clock
-        self.speed = 1 # Hz
+        self.speed = 5 # Hz
         self.clock = None
 
         # Counters
@@ -85,8 +85,9 @@ class CPU:
         extracted_op = self.instruction & 0xf0ff
         try:
             self.funcmap[extracted_op]()
-        except:
+        except Exception as e:
             logging.warn("Unknown instruction: %X, op: %X" % (self.instruction, extracted_op))
+
     def _F033(self):
         # Store BCD representation of Vx in memory locations I, I+1, and I+2.
         logging.info('Storing BCD to Memory')
@@ -120,9 +121,18 @@ class CPU:
         # Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
         logging.info('Display sprite at I')
 
+
     def _F00A(self):
         # Wait for a key press, store the value of the key in Vx.
         logging.info('Wait for keypress')
+        key = -1
+        for i in range(len(self.input)):
+            if self.input[i] == 1:
+                key = i
+        if key >= 0:
+            self.input[self.vx] = key
+        else:
+            self.pc -= 2
 
     def load_rom(self, rom):
         logging.debug("Loading %s..." % rom)
