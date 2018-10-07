@@ -31,7 +31,7 @@ class Emulator:
         self._display_surf = None
         self.rom = rom
         self.cpu = CPU()
-        self.background_color = (0, 255, 0)
+        self.background_color = (0, 0, 0)
         self.foreground_color = (255, 255, 255)
         self.size = self.width, self.height = 64 * self.scaleFactor, 32 * self.scaleFactor
 

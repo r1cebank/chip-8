@@ -6,26 +6,51 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 class CPU:
+    memory = [0] * 4096
+    register = [0] * 16
+    I = 0
+    frameBuffer = [0] * 64 * 32
+    stack = []
+    input = [0] * 16
+    instruction = 0
+
+    # Timers
+    delayTimer = 0
+    soundTimer = 0
+    flush = False
+
+    # Clock
+    speed = 10  # Hz
+    clock = None
+
+    # Counters
+    pc = 0x200
+
+    # Font
+    font = [
+        0xF0, 0x90, 0x90, 0x90, 0xF0,  # 0
+        0x20, 0x60, 0x20, 0x20, 0x70,  # 1
+        0xF0, 0x10, 0xF0, 0x80, 0xF0,  # 2
+        0xF0, 0x10, 0xF0, 0x10, 0xF0,  # 3
+        0x90, 0x90, 0xF0, 0x10, 0x10,  # 4
+        0xF0, 0x80, 0xF0, 0x10, 0xF0,  # 5
+        0xF0, 0x80, 0xF0, 0x90, 0xF0,  # 6
+        0xF0, 0x10, 0x20, 0x40, 0x40,  # 7
+        0xF0, 0x90, 0xF0, 0x90, 0xF0,  # 8
+        0xF0, 0x90, 0xF0, 0x10, 0xF0,  # 9
+        0xF0, 0x90, 0xF0, 0x90, 0x90,  # A
+        0xE0, 0x90, 0xE0, 0x90, 0xE0,  # B
+        0xF0, 0x80, 0x80, 0x80, 0xF0,  # C
+        0xE0, 0x90, 0x90, 0x90, 0xE0,  # D
+        0xF0, 0x80, 0xF0, 0x80, 0xF0,  # E
+        0xF0, 0x80, 0xF0, 0x80, 0x80   # F
+    ]
+
+    # Control lines
+    # 0 - flush display
+    control = [0] * 16
+
     def __init__(self):
-        self.memory = [0] * 4096
-        self.register = [0] * 16
-        self.I = 0
-        self.frameBuffer = [0] * 64 * 32
-        self.stack = []
-        self.input = [0] * 16
-        self.instruction = 0
-
-        # Timers
-        self.delayTimer = 0
-        self.soundTimer = 0
-        self.flush = False
-
-        # Clock
-        self.speed = 5 # Hz
-        self.clock = None
-
-        # Counters
-        self.pc = 0x200
 
         self.funcmap = {
             0x0000: self._0000,
@@ -42,9 +67,10 @@ class CPU:
             0x1000: self._1000
         }
 
-        # Control lines
-        # 0 - flush display
-        self.control = [0] * 16
+        # Loading font in memory
+        for i in range(len(self.font)):
+            # load 80-char font set
+            self.memory[i] = self.font[i]
 
         logging.debug("CPU initialized.")
 
@@ -64,7 +90,7 @@ class CPU:
     def _00e0(self):
         # 00E0 - CLS
         # Clear the display.
-        self.frameBuffer = [0] * 32 * 64
+        self.frameBuffer = [0] * 64 * 32
         self.control[0] = True
         logging.info('Clearing Screen')
 
@@ -120,6 +146,30 @@ class CPU:
     def _D000(self):
         # Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
         logging.info('Display sprite at I')
+        self.register[0xf] = 0
+        x = self.register[self.vx] & 0xff
+        y = self.register[self.vy] & 0xff
+
+        height = self.instruction & 0x000f
+        row = 0
+        while row < height:
+            curr_row = self.memory[row + self.I]
+            pixel_offset = 0
+            while pixel_offset < 8:
+                loc = x + pixel_offset + ((y + row) * 64)
+                pixel_offset += 1
+                if (y + row) >= 32 or (x + pixel_offset - 1) >= 64:
+                    # ignore pixels outside the screen
+                    continue
+                mask = 1 << 8 - pixel_offset
+                curr_pixel = (curr_row & mask) >> (8 - pixel_offset)
+                self.frameBuffer[loc] ^= curr_pixel
+                if self.frameBuffer[loc] == 0:
+                    self.register[0xf] = 1
+                else:
+                    self.register[0xf] = 0
+            row += 1
+        self.control[0] = True
 
 
     def _F00A(self):
@@ -135,11 +185,35 @@ class CPU:
             self.pc -= 2
 
     def load_rom(self, rom):
+        logging.debug('Resetting CPU')
         logging.debug("Loading %s..." % rom)
         romdata = open(rom, 'rb').read()
         for index, val in enumerate(romdata):
             self.memory[0x200 + index] = val
         logging.debug("ROM Loaded")
+
+    def reset(self):
+        self.memory = [0] * 4096
+        self.register = [0] * 16
+        self.I = 0
+        self.frameBuffer = [0] * 64 * 32
+        self.stack = []
+        self.input = [0] * 16
+        self.instruction = 0
+
+        # Timers
+        self.delayTimer = 0
+        self.soundTimer = 0
+        self.flush = False
+
+        # Counters
+        self.pc = 0x200
+
+        # Control lines
+        # 0 - flush display
+        self.control = [0] * 16
+
+        logging.debug("CPU is reset.")
 
     def start(self):
         self.clock = clock(1 / self.speed, self.cycle)
