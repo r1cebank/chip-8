@@ -20,7 +20,7 @@ class CPU:
     flush = False
 
     # Clock
-    speed = 10  # Hz
+    speed = 500  # Hz
     clock = None
 
     # Counters
@@ -48,6 +48,7 @@ class CPU:
 
     # Control lines
     # 0 - flush display
+    # 1 - beep
     control = [0] * 16
 
     def __init__(self):
@@ -55,16 +56,31 @@ class CPU:
         self.funcmap = {
             0x0000: self._0000,
             0x00e0: self._00e0,
+            0x3000: self._3000,
+            0x4000: self._4000,
+            0x8000: self._8000,
+            0x8ff0: self._8FF0,
+            0x8ff2: self._8FF2,
+            0x8ff4: self._8FF4,
+            0x8ff5: self._8FF5,
             0xc000: self._C000,
             0xa000: self._A000,
             0xf000: self._F000,
+            0xe000: self._E000,
+            0xe0a1: self._E0A1,
             0xf033: self._F033,
             0xf065: self._F065,
             0xf029: self._F029,
             0x6000: self._6000,
             0xd000: self._D000,
             0xf00a: self._F00A,
-            0x1000: self._1000
+            0x1000: self._1000,
+            0x2000: self._2000,
+            0x7000: self._7000,
+            0x00ee: self._00ee,
+            0xf015: self._F015,
+            0xf007: self._F007,
+            0xf018: self._F018
         }
 
         # Loading font in memory
@@ -87,12 +103,83 @@ class CPU:
         logging.info("Jumping to %X", self.instruction % 0x0fff)
         self.pc = self.instruction & 0x0fff
 
+    def _2000(self):
+        # 2nnn
+        # Call a subroutine at nnn
+        logging.info('Calling subroutine at %X', self.instruction & 0x0fff)
+        self.stack.append(self.pc)
+        self.pc = self.instruction & 0x0fff
+
+    def _3000(self):
+        # Skip next instruction if Vx = kk.
+        logging.info('Skip next instruction if Vx = kk.')
+        if self.register[self.vx] == (self.instruction & 0x00ff):
+            self.pc += 2
+
+    def _4000(self):
+        # Skip next instruction if Vx != kk.
+        logging.info("Skip next instruction if Vx != kk.")
+        if self.register[self.vx] != (self.instruction & 0x00ff):
+            self.pc += 2
+
+    def _7000(self):
+        # 7xkk
+        # Set Vx = Vx + kk.
+        logging.info('Adding %X to VX', self.instruction & 0xff)
+        self.register[self.vx] += (self.instruction & 0xff)
+
+    def _8000(self):
+        extracted_op = self.instruction & 0xf00f
+        extracted_op += 0xff0
+        try:
+            self.funcmap[extracted_op]()
+        except:
+            logging.warn("Unknown instruction: %X, op: %X" % (self.instruction, extracted_op))
+
+    def _8FF0(self):
+        # Set Vx = Vy.
+        logging.info("Set Vx = Vy.")
+        self.register[self.vx] = self.register[self.vy]
+        self.register[self.vx] &= 0xff
+
+    def _8FF2(self):
+        # Set Vx = Vx AND Vy.
+        logging.info("Set Vx = Vx AND Vy.")
+        self.register[self.vx] &= self.register[self.vy]
+        self.register[self.vx] &= 0xff
+
+    def _8FF4(self):
+        # Set Vx = Vx + Vy, set VF = carry.
+        logging.info("Set Vx = Vx + Vy, set VF = carry.")
+        if self.register[self.vx] + self.register[self.vy] > 0xff:
+            self.register[0xf] = 1
+        else:
+            self.register[0xf] = 0
+        self.register[self.vx] += self.register[self.vy]
+        self.register[self.vx] &= 0xff
+
+    def _8FF5(self):
+        # Set Vx = Vx - Vy, set VF = NOT borrow.
+        logging.info("Set Vx = Vx - Vy, set VF = NOT borrow.")
+        if self.register[self.vy] > self.register[self.vx]:
+            self.register[0xf] = 0
+        else:
+            self.register[0xf] = 1
+        self.register[self.vx] = self.register[self.vx] - self.register[self.vy]
+        self.register[self.vx] &= 0xff
+
     def _00e0(self):
         # 00E0 - CLS
         # Clear the display.
+        logging.info('Clearing Screen')
         self.frameBuffer = [0] * 64 * 32
         self.control[0] = True
-        logging.info('Clearing Screen')
+
+    def _00ee(self):
+        # RET
+        # Return from a subroutine.
+        logging.info('Return from subroutine')
+        self.pc = self.stack.pop()
 
     def _A000(self):
         # Annn - LD I, addr
@@ -107,12 +194,41 @@ class CPU:
         logging.info('Generate Random Number')
         self.register[self.vx] = randint(0, 255) & (self.instruction & 0x00ff)
 
+    def _E000(self):
+        extracted_op = self.instruction & 0xf0ff
+        try:
+            self.funcmap[extracted_op]()
+        except Exception as e:
+            logging.warn("Unknown instruction: %X, op: %X" % (self.instruction, extracted_op))
+
+    def _E0A1(self):
+        # ExA1 SKNP Vx
+        # Skip next instruction if key with the value of Vx is not pressed.
+        logging.info("Skip next instruction if key with the value of Vx is not pressed.")
+        if self.input[self.vx] == 0:
+            self.pc += 2
+
     def _F000(self):
         extracted_op = self.instruction & 0xf0ff
         try:
             self.funcmap[extracted_op]()
         except Exception as e:
             logging.warn("Unknown instruction: %X, op: %X" % (self.instruction, extracted_op))
+
+    def _F007(self):
+        # Set Vx = delay timer value.
+        logging.info('Set Vx = delay timer')
+        self.register[self.vx] = self.delayTimer
+
+    def _F015(self):
+        # Set delay timer = Vx.
+        logging.info('Set delay timer = Vx')
+        self.delayTimer = self.register[self.vx]
+
+    def _F018(self):
+        # Set sound timer = Vx.
+        logging.info("Set sound timer = Vx.")
+        self.soundTimer = self.register[self.vx]
 
     def _F033(self):
         # Store BCD representation of Vx in memory locations I, I+1, and I+2.
@@ -246,4 +362,4 @@ class CPU:
         if self.soundTimer > 0:
             self.soundTimer -= 1
             if self.soundTimer == 0:
-                pass
+                self.control[1] = True

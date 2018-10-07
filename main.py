@@ -38,6 +38,7 @@ class Emulator:
     def on_init(self):
         pygame.init()
         pygame.display.set_caption("chip-8 emulator")
+        pygame.mixer.music.load('beep.mp3')
         self._display_surf = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
         self._display_surf.fill((255, 0, 0))
         self.cpu.load_rom(self.rom)
@@ -70,6 +71,11 @@ class Emulator:
         if self.cpu.control[0]:
             self.on_render()
             self.cpu.control[0] = False
+        # Check beep flag
+        if self.cpu.control[1]:
+            # beep
+            pygame.mixer.music.play(0)
+            self.cpu.control[1] = False
 
     def on_render(self):
         pygame.display.flip()
@@ -91,5 +97,5 @@ class Emulator:
 
 
 if __name__ == "__main__":
-    emulator = Emulator('roms/rand.rom') #sys.argv[1]
+    emulator = Emulator('roms/pong.rom') #sys.argv[1]
     emulator.on_execute()
