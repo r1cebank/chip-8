@@ -20,7 +20,7 @@ class CPU:
     flush = False
 
     # Clock
-    speed = 500  # Hz
+    speed = 50  # Hz
     clock = None
 
     # Counters
@@ -60,18 +60,26 @@ class CPU:
             0x4000: self._4000,
             0x8000: self._8000,
             0x8ff0: self._8FF0,
+            0x8ff1: self._8FF1,
             0x8ff2: self._8FF2,
+            0x8ff3: self._8FF3,
             0x8ff4: self._8FF4,
             0x8ff5: self._8FF5,
+            0x8ff6: self._8FF6,
+            0x8ff7: self._8FF7,
+            0x8ffe: self._8FFE,
             0xc000: self._C000,
             0xa000: self._A000,
             0xf000: self._F000,
+            0xf01e: self._F01E,
             0xe000: self._E000,
             0xe0a1: self._E0A1,
             0xf033: self._F033,
             0xf065: self._F065,
             0xf029: self._F029,
+            0xf055: self._F055,
             0x6000: self._6000,
+            0x5000: self._5000,
             0xd000: self._D000,
             0xf00a: self._F00A,
             0x1000: self._1000,
@@ -92,10 +100,14 @@ class CPU:
 
     def _0000(self):
         extracted_op = self.instruction & 0xf0ff
-        try:
-            self.funcmap[extracted_op]()
-        except:
+        if extracted_op in self.funcmap:
+            try:
+                self.funcmap[extracted_op]()
+            except:
+                logging.error("Instruction error: %X, op: %X" % (self.instruction, extracted_op))
+        else:
             logging.warn("Unknown instruction: %X, op: %X" % (self.instruction, extracted_op))
+            self.stop();
 
     def _1000(self):
         # 1nnn - JMP
@@ -122,6 +134,12 @@ class CPU:
         if self.register[self.vx] != (self.instruction & 0x00ff):
             self.pc += 2
 
+    def _5000(self):
+        # skip next instruction if Vx = Vy
+        logging.info("Skip next instruction if Vx = Vy.")
+        if self.register[self.vx] == self.register[self.vy]:
+            self.pc += 2
+
     def _7000(self):
         # 7xkk
         # Set Vx = Vx + kk.
@@ -131,10 +149,14 @@ class CPU:
     def _8000(self):
         extracted_op = self.instruction & 0xf00f
         extracted_op += 0xff0
-        try:
-            self.funcmap[extracted_op]()
-        except:
+        if extracted_op in self.funcmap:
+            try:
+                self.funcmap[extracted_op]()
+            except:
+                logging.error("Instruction error: %X, op: %X" % (self.instruction, extracted_op))
+        else:
             logging.warn("Unknown instruction: %X, op: %X" % (self.instruction, extracted_op))
+            self.stop();
 
     def _8FF0(self):
         # Set Vx = Vy.
@@ -142,10 +164,22 @@ class CPU:
         self.register[self.vx] = self.register[self.vy]
         self.register[self.vx] &= 0xff
 
+    def _8FF1(self):
+        # Set Vx = Vx OR Vy.
+        logging.info("Set Vx = Vx OR Vy.")
+        self.register[self.vx] |= self.register[self.vy]
+        self.register[self.vx] &= 0xff
+
     def _8FF2(self):
         # Set Vx = Vx AND Vy.
         logging.info("Set Vx = Vx AND Vy.")
         self.register[self.vx] &= self.register[self.vy]
+        self.register[self.vx] &= 0xff
+    
+    def _8FF3(self):
+        # Set Vx = Vx XOR Vy.
+        logging.info("Set Vx = Vx XOR Vy.")
+        self.register[self.vx] ^= self.register[self.vy]
         self.register[self.vx] &= 0xff
 
     def _8FF4(self):
@@ -166,6 +200,29 @@ class CPU:
         else:
             self.register[0xf] = 1
         self.register[self.vx] = self.register[self.vx] - self.register[self.vy]
+        self.register[self.vx] &= 0xff
+
+    def _8FF6(self):
+        # Set Vx = Vx SHR 1.
+        logging.info("Set Vx = Vx SHR 1.")
+        self.register[0xf] = self.register[self.vx] & 0x0001
+        self.register[self.vx] = self.register[self.vx] >> 1
+
+    def _8FF7(self):
+        # Set Vx = Vy - Vx, set VF = NOT borrow.
+        logging.info("Set Vx = Vy - Vx, set VF = NOT borrow.")
+        if self.register[self.vx] > self.register[self.vy]:
+            self.register[0xf] = 0
+        else:
+            self.register[0xf] = 1
+        self.register[self.vx] = self.register[self.vy] - self.register[self.vx]
+        self.register[self.vx] &= 0xff
+
+    def _8FFE(self):
+        # Set Vx = Vx SHL 1.
+        logging.info("Set Vx = Vx SHL 1.")
+        self.register[0xf] = (self.register[self.vx] & 0x00f0) >> 7
+        self.register[self.vx] = self.register[self.vx] << 1
         self.register[self.vx] &= 0xff
 
     def _00e0(self):
@@ -196,10 +253,14 @@ class CPU:
 
     def _E000(self):
         extracted_op = self.instruction & 0xf0ff
-        try:
-            self.funcmap[extracted_op]()
-        except Exception as e:
+        if extracted_op in self.funcmap:
+            try:
+                self.funcmap[extracted_op]()
+            except:
+                logging.error("Instruction error: %X, op: %X" % (self.instruction, extracted_op))
+        else:
             logging.warn("Unknown instruction: %X, op: %X" % (self.instruction, extracted_op))
+            self.stop();
 
     def _E0A1(self):
         # ExA1 SKNP Vx
@@ -210,10 +271,14 @@ class CPU:
 
     def _F000(self):
         extracted_op = self.instruction & 0xf0ff
-        try:
-            self.funcmap[extracted_op]()
-        except Exception as e:
+        if extracted_op in self.funcmap:
+            try:
+                self.funcmap[extracted_op]()
+            except:
+                logging.error("Instruction error: %X, op: %X" % (self.instruction, extracted_op))
+        else:
             logging.warn("Unknown instruction: %X, op: %X" % (self.instruction, extracted_op))
+            self.stop();
 
     def _F007(self):
         # Set Vx = delay timer value.
@@ -229,13 +294,32 @@ class CPU:
         # Set sound timer = Vx.
         logging.info("Set sound timer = Vx.")
         self.soundTimer = self.register[self.vx]
+    
+    def _F01E(self):
+        # Set I = I + Vx.
+        logging.info("Set I = I + Vx.")
+        self.I += self.register[self.vx]
+        if self.I > 0xfff:
+            self.register[0xf] = 1
+            self.I &= 0xfff
+        else:
+            self.register[0xf] = 0
 
     def _F033(self):
         # Store BCD representation of Vx in memory locations I, I+1, and I+2.
-        logging.info('Storing BCD to Memory')
+        logging.info("Storing BCD to Memory")
         self.memory[self.I] = int(self.register[self.vx] / 100)
         self.memory[self.I + 1] = int((self.register[self.vx] % 100) / 10)
         self.memory[self.I + 2] = int(self.register[self.vx] % 10)
+
+    def _F055(self):
+        # Store registers V0 through Vx in memory starting at location I.
+        logging.info("Store registers V0 through Vx in memory starting at location I.")
+        i = 0
+        while i <= self.vx:
+            self.memory[self.I + i] = self.register[i]
+            i += 1
+        self.I += (self.vx) + 1
 
     def _F065(self):
         # Read registers V0 through Vx from memory starting at location I.
@@ -350,10 +434,14 @@ class CPU:
 
         # 2. check ops, lookup and execute
         extracted_op = self.instruction & 0xf000
-        try:
-            self.funcmap[extracted_op]()  # call the associated method
-        except Exception as e:
+        if extracted_op in self.funcmap:
+            try:
+                self.funcmap[extracted_op]()
+            except:
+                logging.error("Instruction error: %X, op: %X" % (self.instruction, extracted_op))
+        else:
             logging.warn("Unknown instruction: %X, op: %X" % (self.instruction, extracted_op))
+            self.stop();
 
 
         # decrement timers

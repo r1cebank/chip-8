@@ -97,5 +97,5 @@ class Emulator:
 
 
 if __name__ == "__main__":
-    emulator = Emulator('roms/pong.rom') #sys.argv[1]
+    emulator = Emulator('roms/key.rom') #sys.argv[1]
     emulator.on_execute()
