@@ -20,7 +20,7 @@ class CPU:
     flush = False
 
     # Clock
-    speed = 50  # Hz
+    speed = 100  # Hz
     clock = None
 
     # Counters
@@ -124,19 +124,19 @@ class CPU:
 
     def _3000(self):
         # Skip next instruction if Vx = kk.
-        logging.info('Skip next instruction if Vx = kk.')
+        logging.info('Skip next instruction if Vx(I:%X V:%X) = kk(%X).', self.vx, self.register[self.vx], (self.instruction & 0x00ff))
         if self.register[self.vx] == (self.instruction & 0x00ff):
             self.pc += 2
 
     def _4000(self):
         # Skip next instruction if Vx != kk.
-        logging.info("Skip next instruction if Vx != kk.")
+        logging.info("Skip next instruction if Vx(I:%X V:%X) != kk(%X).", self.vx, self.register[self.vx], (self.instruction & 0x00ff))
         if self.register[self.vx] != (self.instruction & 0x00ff):
             self.pc += 2
 
     def _5000(self):
         # skip next instruction if Vx = Vy
-        logging.info("Skip next instruction if Vx = Vy.")
+        logging.info("Skip next instruction if Vx(I:%X V:%X) = Vy(I:%X V:%X).", self.vx, self.register[self.vx], self.vy, self.register[self.vy])
         if self.register[self.vx] == self.register[self.vy]:
             self.pc += 2
 
@@ -242,7 +242,7 @@ class CPU:
         # Annn - LD I, addr
         # Set I = nnn.
         # The value of register I is set to nnn.
-        logging.info("Sets I to the address NNN.")
+        logging.info("Sets I to the address %X.", self.instruction & 0x0fff)
         self.I = self.instruction & 0x0fff
 
     def _C000(self):
@@ -319,7 +319,6 @@ class CPU:
         while i <= self.vx:
             self.memory[self.I + i] = self.register[i]
             i += 1
-        self.I += (self.vx) + 1
 
     def _F065(self):
         # Read registers V0 through Vx from memory starting at location I.
@@ -328,7 +327,6 @@ class CPU:
         while i <= self.vx:
             self.register[i] = self.memory[self.I + i]
             i += 1
-        self.I += self.vx + 1
 
     def _F029(self):
         # Set I = location of sprite for digit Vx.
@@ -340,7 +338,7 @@ class CPU:
 
     def _6000(self):
         # Set Vx = kk.
-        logging.info('Set vx to kk')
+        logging.info('Set vx (I: %X) to kk(%X)', self.vx, self.instruction & 0x00ff)
         self.register[self.vx] = self.instruction & 0x00ff
 
     def _D000(self):
