@@ -29,17 +29,22 @@ class Emulator:
         self._running = False
         self.scaleFactor = 10
         self._display_surf = None
+        self.font = None
         self.rom = rom
+        self.debugWidth = 30
         self.cpu = CPU()
         self.background_color = (0, 0, 0)
         self.foreground_color = (255, 255, 255)
         self.size = self.width, self.height = 64 * self.scaleFactor, 32 * self.scaleFactor
+        self.sizeWithDebug = self.size[0] + self.debugWidth * self.scaleFactor, self.size[1]
 
     def on_init(self):
         pygame.init()
+        pygame.font.init()
         pygame.display.set_caption("chip-8 emulator")
         pygame.mixer.music.load('beep.mp3')
-        self._display_surf = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
+        self.font = pygame.font.SysFont('Hack Regular', 2 * self.scaleFactor)
+        self._display_surf = pygame.display.set_mode(self.sizeWithDebug, pygame.HWSURFACE | pygame.DOUBLEBUF)
         self._display_surf.fill((255, 0, 0))
         self.cpu.load_rom(self.rom)
         self.cpu.start()
@@ -76,6 +81,33 @@ class Emulator:
             # beep
             pygame.mixer.music.play(0)
             self.cpu.control[1] = False
+        self.update_debug_info()
+
+    def clear_debug_info(self):
+        debug_info = pygame.Surface((self.debugWidth * self.scaleFactor, self.height))
+        debug_info.fill((0, 0, 0))
+        self._display_surf.blit(debug_info, (self.width, 0))
+
+    def update_debug_info(self):
+        self.clear_debug_info()
+        registers = self.font.render('registers', False, (255, 255, 255))
+        for i in range(16):
+            v = self.font.render("V%d: %X" % (i + 1, self.cpu.register[i]), False, (255, 255, 255))
+            self._display_surf.blit(v, (self.width + 6 * self.scaleFactor * (i % 4), 2 * self.scaleFactor + 2 * self.scaleFactor * int(i / 4)))
+        stack = self.font.render('stack', False, (255, 255, 255))
+        stack_value = self.font.render(" ".join(str(x) for x in self.cpu.stack), False, (255, 255, 255))
+        inputs = self.font.render('inputs', False, (255, 255, 255))
+        for i in range(16):
+            v = self.font.render("I%d: %s" % (i + 1, self.cpu.input[i]), False, (255, 255, 255))
+            self._display_surf.blit(v, (self.width + 6 * self.scaleFactor * (i % 4), 15 + 14 * self.scaleFactor + 2 * self.scaleFactor * int(i / 4)))
+        counters = self.font.render("I: %X   Delay: %X   Sound: %X   PC: %X" % (self.cpu .I, self.cpu.delayTimer, self.cpu.soundTimer, self.cpu.pc), False, (255, 255, 255))
+        self._display_surf.blit(registers, (self.width, 0))
+        self._display_surf.blit(stack, (self.width, 10 * self.scaleFactor))
+        self._display_surf.blit(stack_value, (self.width, 10 * self.scaleFactor + 2 * self.scaleFactor))
+        self._display_surf.blit(inputs, (self.width, 14 * self.scaleFactor))
+        self._display_surf.blit(counters, (self.width, 24 * self.scaleFactor))
+
+        pygame.display.flip()
 
     def on_render(self):
         pygame.display.flip()
@@ -97,5 +129,5 @@ class Emulator:
 
 
 if __name__ == "__main__":
-    emulator = Emulator('roms/key.rom') #sys.argv[1]
+    emulator = Emulator('roms/test.rom') #sys.argv[1]
     emulator.on_execute()

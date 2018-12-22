@@ -20,7 +20,7 @@ class CPU:
     flush = False
 
     # Clock
-    speed = 100  # Hz
+    speed = 10  # Hz
     clock = None
 
     # Counters
